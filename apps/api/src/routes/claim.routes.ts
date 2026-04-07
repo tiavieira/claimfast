@@ -8,6 +8,31 @@ import { calculateFraudScore } from '../services/fraud.service';
 export const claimRouter = Router();
 claimRouter.use(requireAuth);
 
+const SUGGESTIONS: Record<string, string[]> = {
+  auto: [
+    'Colisão traseira em estacionamento. O outro veículo embateu na minha viatura enquanto estava estacionada, causando danos no para-choques e carenagem traseira.',
+    'Acidente de viação com colisão lateral durante mudança de faixa. Danos na porta do condutor e espelho retrovisor partido.',
+    'Furto do veículo do parque de estacionamento durante a noite. Queixa apresentada na PSP.',
+    'Vidro da janela do condutor partido por vandalismo enquanto o carro estava estacionado na via pública.',
+  ],
+  home: [
+    'Inundação por rotura de canalização na casa de banho. Danos no soalho e paredes adjacentes.',
+    'Incêndio na cozinha iniciado por descuido no fogão. Danos nos armários, bancadas e eletrodomésticos.',
+    'Furto com arrombamento da porta de entrada. Computador portátil, tablet e joias furtados. Queixa apresentada na GNR.',
+    'Danos por tempestade. Queda de árvore sobre o telhado durante temporal com ventos fortes, causando infiltrações no interior.',
+  ],
+  health: [
+    'Internamento hospitalar de urgência por apendicite aguda. Cirurgia realizada com sucesso, com 3 dias de internamento.',
+    'Consulta de especialidade em ortopedia após lesão no joelho durante prática desportiva.',
+    'Exames complementares de diagnóstico: ressonância magnética lombar por lombalgias persistentes.',
+    'Fisioterapia pós-operatória para recuperação de cirurgia ao ombro. Plano de 20 sessões prescrito.',
+  ],
+  life: [
+    'Acidente pessoal com incapacidade temporária. Queda em ambiente doméstico com fratura no pulso. Baixa médica de 30 dias.',
+    'Acidente de trabalho com incapacidade parcial. Ocorrência registada na entidade patronal.',
+  ],
+};
+
 /* ── List claims ── */
 claimRouter.get('/', (req: AuthRequest, res) => {
   const db = getDb();
@@ -48,6 +73,31 @@ claimRouter.get('/:id', (req: AuthRequest, res) => {
     photos: JSON.parse(row.photos ?? '[]'),
     events,
     messages,
+  });
+});
+
+/* ── Description suggestions ── */
+claimRouter.get('/suggestions', (req: AuthRequest, res) => {
+  const { policyId } = req.query;
+  const db = getDb();
+
+  let policyType = 'auto';
+  if (policyId) {
+    const policy = db.prepare('SELECT type FROM policies WHERE id = ? AND user_id = ?')
+      .get(policyId as string, req.userId) as any;
+    if (policy) policyType = policy.type;
+  }
+
+  const history = db.prepare(`
+    SELECT DISTINCT c.description FROM claims c
+    JOIN policies p ON c.policy_id = p.id
+    WHERE c.user_id = ? AND p.type = ?
+    ORDER BY c.created_at DESC LIMIT 2
+  `).all(req.userId, policyType) as any[];
+
+  res.json({
+    templates: SUGGESTIONS[policyType] ?? SUGGESTIONS['auto'],
+    history: history.map((r: any) => r.description),
   });
 });
 

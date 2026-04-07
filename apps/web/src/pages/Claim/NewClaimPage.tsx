@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, ChevronRight, Mic, MicOff, Keyboard, Camera,
   CheckCircle, AlertCircle, Loader2, Car, Home, Heart, Shield,
-  MapPin, Calendar, Zap,
+  MapPin, Calendar, Zap, Clock, Sparkles,
 } from 'lucide-react';
 import { api } from '../../config/api';
 import { useVoice } from '../../hooks/useVoice';
@@ -47,11 +47,21 @@ export function NewClaimPage() {
   const [interimText, setInterimText] = useState('');
   const [voiceDone, setVoiceDone]     = useState(false);
   const [voiceError, setVoiceError]   = useState('');
+  const [suggestions, setSuggestions] = useState<{ templates: string[]; history: string[] } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     api.get('/policies').then(r => setPolicies(r.data));
   }, []);
+
+  useEffect(() => {
+    if (step === 'input' && selectedPolicy) {
+      setSuggestions(null);
+      api.get(`/claims/suggestions?policyId=${selectedPolicy.id}`)
+        .then(r => setSuggestions(r.data))
+        .catch(() => {});
+    }
+  }, [step, selectedPolicy]);
 
   /* ── Voice ── */
   const { listening, requesting, supported: voiceSupported, startListening, stopListening } = useVoice({
@@ -85,6 +95,12 @@ export function NewClaimPage() {
     setDescription('');
     setVoiceDone(false);
   }, [stopListening]);
+
+  const handleUseSuggestion = useCallback((text: string) => {
+    if (listening) stopListening();
+    setDescription(text);
+    setInputMode('text');
+  }, [listening, stopListening]);
 
   /* ── Analyze ── */
   const handleAnalyze = async () => {
@@ -520,6 +536,59 @@ export function NewClaimPage() {
                     e.target.style.boxShadow = 'none';
                   }}
                 />
+              )}
+
+              {/* Suggestions */}
+              {!description.trim() && suggestions && (suggestions.history.length > 0 || suggestions.templates.length > 0) && (
+                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} style={{ marginTop: '1.5rem' }}>
+                  <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--cf-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.75rem' }}>
+                    Sugestões para a sua apólice
+                  </p>
+
+                  {suggestions.history.length > 0 && (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.45rem' }}>
+                        <Clock size={11} style={{ color: 'var(--cf-primary)' }} />
+                        <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--cf-primary)' }}>Da sua história</span>
+                      </div>
+                      {suggestions.history.map((text, i) => (
+                        <button key={`h-${i}`} onClick={() => handleUseSuggestion(text)}
+                          style={{
+                            width: '100%', textAlign: 'left', background: 'var(--cf-surface2)',
+                            border: '1.5px solid var(--cf-primary)', borderRadius: 'var(--cf-radius)',
+                            padding: '0.65rem 0.875rem', marginBottom: '0.5rem', cursor: 'pointer',
+                            fontSize: '0.82rem', color: 'var(--cf-text)', lineHeight: 1.5,
+                            transition: 'all 0.15s',
+                          }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#EFF6FF'; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--cf-surface2)'; }}
+                        >
+                          {text.length > 100 ? text.slice(0, 100) + '…' : text}
+                        </button>
+                      ))}
+                    </>
+                  )}
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.45rem', marginTop: suggestions.history.length > 0 ? '0.75rem' : 0 }}>
+                    <Sparkles size={11} style={{ color: 'var(--cf-accent)' }} />
+                    <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--cf-accent)' }}>Modelos frequentes</span>
+                  </div>
+                  {suggestions.templates.slice(0, 3).map((text, i) => (
+                    <button key={`t-${i}`} onClick={() => handleUseSuggestion(text)}
+                      style={{
+                        width: '100%', textAlign: 'left', background: 'var(--cf-surface2)',
+                        border: '1.5px solid var(--cf-border)', borderRadius: 'var(--cf-radius)',
+                        padding: '0.65rem 0.875rem', marginBottom: '0.5rem', cursor: 'pointer',
+                        fontSize: '0.82rem', color: 'var(--cf-text)', lineHeight: 1.5,
+                        transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--cf-accent)'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--cf-border)'; }}
+                    >
+                      {text.length > 100 ? text.slice(0, 100) + '…' : text}
+                    </button>
+                  ))}
+                </motion.div>
               )}
 
               {/* Date + location */}
