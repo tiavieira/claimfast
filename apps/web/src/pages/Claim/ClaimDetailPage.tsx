@@ -226,6 +226,21 @@ export function ClaimDetailPage() {
         {/* Timeline tab */}
         {activeTab === 'timeline' && (
           <motion.div key="timeline" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            {/* Photos */}
+            {claim.photos?.filter((p: string) => p.startsWith('data:')).length > 0 && (
+              <div style={{ background: 'var(--cf-surface)', border: '1.5px solid var(--cf-border)', borderRadius: 'var(--cf-radius)', padding: '1rem 1.25rem', marginBottom: '1rem' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--cf-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.75rem' }}>
+                  Evidências ({claim.photos.filter((p: string) => p.startsWith('data:')).length})
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem' }}>
+                  {claim.photos.filter((p: string) => p.startsWith('data:')).map((src: string, i: number) => (
+                    <a key={i} href={src} target="_blank" rel="noopener noreferrer" style={{ display: 'block', aspectRatio: '1', borderRadius: 6, overflow: 'hidden', border: '1px solid var(--cf-border)' }}>
+                      <img src={src} alt={`Evidência ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
             {(claim.events ?? []).map((ev: any, i: number) => (
               <motion.div key={ev.id}
                 initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}

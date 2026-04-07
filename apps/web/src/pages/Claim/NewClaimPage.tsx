@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, ChevronRight, Mic, MicOff, Keyboard, Camera,
   CheckCircle, AlertCircle, Loader2, Car, Home, Heart, Shield,
-  MapPin, Calendar, Zap, Clock, Sparkles,
+  MapPin, Calendar, Zap, Clock, Sparkles, Upload, X,
 } from 'lucide-react';
 import { api } from '../../config/api';
 import { useVoice } from '../../hooks/useVoice';
@@ -28,6 +28,28 @@ const PHOTO_GUIDES: Record<string, string[]> = {
 
 const STEP_LABELS = ['Apólice', 'Descrição', 'Análise', 'Evidências', 'Confirmação'];
 
+function resizeImage(file: File, maxPx = 1200, quality = 0.78): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = e => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > height && width > maxPx) { height = Math.round((height * maxPx) / width); width = maxPx; }
+        else if (height > maxPx)             { width  = Math.round((width  * maxPx) / height); height = maxPx; }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = e.target!.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export function NewClaimPage() {
   const navigate = useNavigate();
   const { isMobile } = useBreakpoint();
@@ -48,7 +70,10 @@ export function NewClaimPage() {
   const [voiceDone, setVoiceDone]     = useState(false);
   const [voiceError, setVoiceError]   = useState('');
   const [suggestions, setSuggestions] = useState<{ templates: string[]; history: string[] } | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const textareaRef    = useRef<HTMLTextAreaElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef   = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api.get('/policies').then(r => setPolicies(r.data));
@@ -102,6 +127,22 @@ export function NewClaimPage() {
     setInputMode('text');
   }, [listening, stopListening]);
 
+  const handlePhotoFiles = useCallback(async (files: FileList | null, inputEl: HTMLInputElement | null) => {
+    if (!files || files.length === 0) return;
+    setPhotoLoading(true);
+    try {
+      const results: string[] = [];
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith('image/')) continue;
+        results.push(await resizeImage(file));
+      }
+      setPhotos(prev => [...prev, ...results].slice(0, 8));
+    } finally {
+      setPhotoLoading(false);
+      if (inputEl) inputEl.value = ''; // allow re-selecting same file
+    }
+  }, []);
+
   /* ── Analyze ── */
   const handleAnalyze = async () => {
     if (!description.trim()) return;
@@ -130,11 +171,6 @@ export function NewClaimPage() {
       });
       navigate(`/claim/${data.id}?new=1`);
     } finally { setSubmitting(false); }
-  };
-
-  /* ── Simulate photo ── */
-  const addPhoto = (label: string) => {
-    setPhotos(p => [...p, label]);
   };
 
   const STEPS: Step[] = ['policy', 'input', 'analysis', 'photos', 'confirm'];
@@ -763,40 +799,98 @@ export function NewClaimPage() {
               border: '1px solid var(--cf-border)',
             }}>
               <h2 style={{ fontSize: '1.375rem', fontWeight: 800, marginBottom: '0.5rem' }}>Adicionar evidências</h2>
-              <p style={{ color: 'var(--cf-text-sec)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+              <p style={{ color: 'var(--cf-text-sec)', fontSize: '0.9rem', marginBottom: '1.25rem' }}>
                 Fotografias aceleram o processo. Pode adicionar depois se preferir.
               </p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem', marginBottom: '1.5rem' }}>
-                {(PHOTO_GUIDES[selectedPolicy?.type] ?? PHOTO_GUIDES.default).map((guide, i) => {
-                  const added = photos.includes(guide);
-                  return (
-                    <motion.button
-                      key={guide}
-                      whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                      onClick={() => added ? setPhotos(p => p.filter(x => x !== guide)) : addPhoto(guide)}
-                      style={{
-                        padding: '1.125rem',
-                        border: `2px solid ${added ? 'var(--cf-accent)' : 'var(--cf-border)'}`,
-                        borderRadius: 'var(--cf-radius)',
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                        background: added ? 'var(--cf-accent-soft)' : 'var(--cf-surface2)',
-                        boxShadow: added ? '0 0 0 2px rgba(255,86,48,0.15)' : 'none',
-                        transition: 'all 0.15s cubic-bezier(0.4,0,0.2,1)',
-                      }}>
-                      <div style={{ marginBottom: '0.5rem' }}>
-                        {added ? <CheckCircle size={24} color="var(--cf-accent)" /> : <Camera size={24} color="var(--cf-text-muted)" />}
-                      </div>
-                      <div style={{ fontSize: '0.78rem', fontWeight: 600, color: added ? 'var(--cf-accent)' : 'var(--cf-text-sec)' }}>{guide}</div>
-                    </motion.button>
-                  );
-                })}
+
+              {/* Tips */}
+              <div style={{ background: 'var(--cf-surface2)', border: '1px solid var(--cf-border)', borderRadius: 'var(--cf-radius-sm)', padding: '0.75rem 1rem', marginBottom: '1.5rem', fontSize: '0.8rem', color: 'var(--cf-text-sec)', lineHeight: 1.7 }}>
+                <span style={{ fontWeight: 700, color: 'var(--cf-text)', display: 'block', marginBottom: '0.25rem' }}>O que fotografar:</span>
+                {(PHOTO_GUIDES[selectedPolicy?.type] ?? PHOTO_GUIDES.default).map(g => (
+                  <span key={g} style={{ display: 'block' }}>• {g}</span>
+                ))}
               </div>
-              {photos.length > 0 && (
-                <div style={{ background: 'var(--cf-success-bg)', border: '1px solid #A7F3D0', borderRadius: 'var(--cf-radius)', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.85rem', color: 'var(--cf-success)' }}>
-                  ✅ {photos.length} evidência{photos.length > 1 ? 's' : ''} adicionada{photos.length > 1 ? 's' : ''}
+
+              {/* Action buttons */}
+              <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => cameraInputRef.current?.click()}
+                  disabled={photoLoading || photos.length >= 8}
+                  style={{
+                    flex: 1, padding: '0.875rem', border: '2px dashed var(--cf-accent)', borderRadius: 'var(--cf-radius)',
+                    background: 'var(--cf-accent-soft)', cursor: 'pointer', display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', gap: '0.375rem', color: 'var(--cf-accent)', fontWeight: 600, fontSize: '0.85rem',
+                    opacity: photos.length >= 8 ? 0.5 : 1,
+                  }}
+                >
+                  <Camera size={22} /> Câmara
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={photoLoading || photos.length >= 8}
+                  style={{
+                    flex: 1, padding: '0.875rem', border: '2px dashed var(--cf-border)', borderRadius: 'var(--cf-radius)',
+                    background: 'var(--cf-surface2)', cursor: 'pointer', display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', gap: '0.375rem', color: 'var(--cf-text-sec)', fontWeight: 600, fontSize: '0.85rem',
+                    opacity: photos.length >= 8 ? 0.5 : 1,
+                  }}
+                >
+                  <Upload size={22} /> Galeria / Ficheiro
+                </motion.button>
+              </div>
+
+              {/* Hidden inputs */}
+              <input
+                ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
+                onChange={e => handlePhotoFiles(e.target.files, e.target)}
+              />
+              <input
+                ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }}
+                onChange={e => handlePhotoFiles(e.target.files, e.target)}
+              />
+
+              {/* Loading */}
+              {photoLoading && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--cf-text-muted)', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                  <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> A processar imagem…
                 </div>
               )}
+
+              {/* Thumbnails grid */}
+              {photos.length > 0 && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginBottom: '1.25rem' }}
+                >
+                  {photos.map((src, i) => (
+                    <motion.div key={i} initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                      style={{ position: 'relative', aspectRatio: '1', borderRadius: 'var(--cf-radius-sm)', overflow: 'hidden', border: '1.5px solid var(--cf-border)' }}
+                    >
+                      <img src={src} alt={`Evidência ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      <button
+                        onClick={() => setPhotos(p => p.filter((_, j) => j !== i))}
+                        style={{
+                          position: 'absolute', top: 4, right: 4, width: 22, height: 22,
+                          borderRadius: '50%', background: 'rgba(0,0,0,0.6)', border: 'none',
+                          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: 'white',
+                        }}
+                      >
+                        <X size={12} />
+                      </button>
+                    </motion.div>
+                  ))}
+                </motion.div>
+              )}
+
+              {photos.length > 0 && (
+                <div style={{ background: 'var(--cf-success-bg)', border: '1px solid #A7F3D0', borderRadius: 'var(--cf-radius)', padding: '0.625rem 1rem', marginBottom: '1.25rem', fontSize: '0.85rem', color: 'var(--cf-success)', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                  <CheckCircle size={15} /> {photos.length} foto{photos.length > 1 ? 's' : ''} adicionada{photos.length > 1 ? 's' : ''}
+                  {photos.length < 8 && <span style={{ color: 'var(--cf-text-muted)', fontSize: '0.78rem', marginLeft: 'auto' }}>máx. 8</span>}
+                </div>
+              )}
+
               <PrimaryButton onClick={() => setStep('confirm')}>
                 Continuar <ChevronRight size={18} />
               </PrimaryButton>
@@ -834,7 +928,16 @@ export function NewClaimPage() {
                 <Row label="Tipo de sinistro" value={analysis?.suggestedTitle ?? 'Sinistro'} />
                 <Row label="Data" value={incidentDate} />
                 {incidentLocation && <Row label="Local" value={incidentLocation} />}
-                {photos.length > 0 && <Row label="Evidências" value={`${photos.length} foto${photos.length > 1 ? 's' : ''}`} />}
+                {photos.length > 0 && (
+                  <>
+                    <Row label="Evidências" value={`${photos.length} foto${photos.length > 1 ? 's' : ''}`} />
+                    <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', marginBottom: '0.625rem' }}>
+                      {photos.map((src, i) => (
+                        <img key={i} src={src} alt="" style={{ width: 52, height: 52, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--cf-border)' }} />
+                      ))}
+                    </div>
+                  </>
+                )}
                 {/* Gradient total line */}
                 <div style={{
                   display: 'flex',
