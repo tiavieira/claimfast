@@ -184,7 +184,7 @@ export function ClaimDetailPage() {
           </div>
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
             {[
-              { label: 'Tipo', value: claim.ai_analysis.suggestedTitle },
+              { label: 'Tipo', value: claim.ai_analysis.suggestedTitle ?? ({ collision: 'Colisão', theft: 'Furto/Roubo', fire: 'Incêndio', flood: 'Inundação', glass: 'Vidros', consultation: 'Consulta médica', surgery: 'Cirurgia', liability: 'Resp. Civil', other: 'Sinistro' } as Record<string,string>)[claim.ai_analysis.incidentType] ?? 'Sinistro' },
               { label: 'Gravidade', value: { low: 'Baixa', medium: 'Média', high: 'Alta', total_loss: 'Perda total' }[claim.ai_analysis.severity as string] },
               { label: 'Confiança IA', value: `${Math.round(claim.ai_analysis.confidence * 100)}%` },
             ].map(item => (

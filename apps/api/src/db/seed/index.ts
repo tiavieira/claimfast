@@ -110,7 +110,9 @@ function makeClaim(opts: {
     hasLocation: !!opts.incidentLocation,
     hasPhotos: (opts.photos ?? []).length > 0,
   });
-  const ai = JSON.stringify({ incidentType: opts.type, severity: opts.estimatedAmount > 5000 ? 'high' : 'medium', estimatedAmount: opts.estimatedAmount, confidence: 0.89 });
+  const TYPE_TITLES: Record<string, string> = { collision: 'Colisão / Acidente de viação', theft: 'Furto ou roubo', fire: 'Incêndio', flood: 'Inundação / Danos por água', glass: 'Quebra de vidros', consultation: 'Consulta médica', surgery: 'Cirurgia / Internamento', liability: 'Responsabilidade civil', exams: 'Análises e exames', dental: 'Tratamento dentário', roadside: 'Assistência em viagem', other: 'Sinistro' };
+  const severity = opts.estimatedAmount > 5000 ? 'high' : 'medium';
+  const ai = JSON.stringify({ incidentType: opts.type, severity, estimatedAmount: opts.estimatedAmount, confidence: 0.89, suggestedTitle: TYPE_TITLES[opts.type] ?? 'Sinistro', location: opts.incidentLocation ?? null, damageItems: [], involvedParties: [] });
   insertClaim.run(
     id, opts.userId, opts.policyId, opts.type, opts.status,
     opts.title, opts.description, opts.incidentDate, opts.incidentLocation ?? null,
