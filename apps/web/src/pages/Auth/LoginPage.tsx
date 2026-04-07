@@ -6,10 +6,11 @@ import { useAuthStore } from '../../store/auth.store';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 
 const DEMOS = [
-  { label: 'João Silva',    sub: '2 apólices · auto + habitação', email: 'joao@demo.pt',   initials: 'JS', color: '#2563EB' },
-  { label: 'Maria Santos',  sub: '1 apólice saúde · 2 sinistros', email: 'maria@demo.pt',  initials: 'MS', color: '#059669' },
-  { label: 'Pedro Costa',   sub: '2 apólices · 1 sinistro activo', email: 'pedro@demo.pt', initials: 'PC', color: '#7C3AED' },
-  { label: 'Ana Ferreira',  sub: '⚠️ Perfil de alto risco',       email: 'ana@demo.pt',    initials: 'AF', color: '#DC2626' },
+  { label: 'João Silva',      sub: '2 apólices · auto + habitação',       email: 'joao@demo.pt',    initials: 'JS', color: '#2563EB' },
+  { label: 'Rui Barbosa',     sub: '2 apólices Fidelidade · 3 sinistros', email: 'rui@demo.pt',     initials: 'RB', color: '#0891B2' },
+  { label: 'Sofia Rodrigues', sub: 'Auto + Saúde Fidelidade · cirurgia',  email: 'sofia@demo.pt',   initials: 'SR', color: '#059669' },
+  { label: 'Beatriz Lopes',   sub: 'Auto + Saúde · sinistros recentes',   email: 'beatriz@demo.pt', initials: 'BL', color: '#7C3AED' },
+  { label: 'Ana Ferreira',    sub: '⚠️ Perfil de alto risco fraude',      email: 'ana@demo.pt',     initials: 'AF', color: '#DC2626' },
 ];
 
 export function LoginPage() {
@@ -291,7 +292,7 @@ export function LoginPage() {
             >
               <div style={{ textAlign: 'left' }}>
                 <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'white' }}>Dashboard Operacional</div>
-                <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.6)', marginTop: '0.1rem' }}>Fidelidade S.A. · 22 sinistros · 4 alertas de fraude</div>
+                <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.6)', marginTop: '0.1rem' }}>Fidelidade S.A. · 42 sinistros · alertas SLA activos</div>
               </div>
               <Shield size={16} color="#FF5630" />
             </motion.button>

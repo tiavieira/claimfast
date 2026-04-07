@@ -16,7 +16,15 @@ const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
   : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176'];
 
-app.use(cors({ origin: allowedOrigins }));
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // allow server-to-server / curl
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    if (/\.vercel\.app$/.test(origin)) return cb(null, true); // all Vercel preview URLs
+    cb(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+}));
 app.use(express.json({ limit: '20mb' }));
 app.use(rateLimit({ windowMs: 60_000, max: 120, standardHeaders: true }));
 
