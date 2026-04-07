@@ -52,30 +52,6 @@ claimRouter.get('/', (req: AuthRequest, res) => {
   res.json(claims);
 });
 
-/* ── Get single claim ── */
-claimRouter.get('/:id', (req: AuthRequest, res) => {
-  const db = getDb();
-  const row = db.prepare(`
-    SELECT c.*, p.type as policy_type, p.insurer, p.policy_number,
-           p.plate, p.vehicle_make, p.vehicle_model, p.address, p.coverages
-    FROM claims c JOIN policies p ON c.policy_id = p.id
-    WHERE c.id = ? AND c.user_id = ?
-  `).get(req.params.id, req.userId) as any;
-  if (!row) return res.status(404).json({ error: 'Sinistro não encontrado' });
-
-  const events   = db.prepare('SELECT * FROM claim_events WHERE claim_id = ? ORDER BY created_at').all(req.params.id);
-  const messages = db.prepare('SELECT * FROM claim_messages WHERE claim_id = ? ORDER BY created_at').all(req.params.id);
-
-  res.json({
-    ...row,
-    ai_analysis: row.ai_analysis ? JSON.parse(row.ai_analysis) : null,
-    coverages: JSON.parse(row.coverages ?? '[]'),
-    photos: JSON.parse(row.photos ?? '[]'),
-    events,
-    messages,
-  });
-});
-
 /* ── Description suggestions ── */
 claimRouter.get('/suggestions', (req: AuthRequest, res) => {
   const { policyId } = req.query;
@@ -98,6 +74,30 @@ claimRouter.get('/suggestions', (req: AuthRequest, res) => {
   res.json({
     templates: SUGGESTIONS[policyType] ?? SUGGESTIONS['auto'],
     history: history.map((r: any) => r.description),
+  });
+});
+
+/* ── Get single claim ── */
+claimRouter.get('/:id', (req: AuthRequest, res) => {
+  const db = getDb();
+  const row = db.prepare(`
+    SELECT c.*, p.type as policy_type, p.insurer, p.policy_number,
+           p.plate, p.vehicle_make, p.vehicle_model, p.address, p.coverages
+    FROM claims c JOIN policies p ON c.policy_id = p.id
+    WHERE c.id = ? AND c.user_id = ?
+  `).get(req.params.id, req.userId) as any;
+  if (!row) return res.status(404).json({ error: 'Sinistro não encontrado' });
+
+  const events   = db.prepare('SELECT * FROM claim_events WHERE claim_id = ? ORDER BY created_at').all(req.params.id);
+  const messages = db.prepare('SELECT * FROM claim_messages WHERE claim_id = ? ORDER BY created_at').all(req.params.id);
+
+  res.json({
+    ...row,
+    ai_analysis: row.ai_analysis ? JSON.parse(row.ai_analysis) : null,
+    coverages: JSON.parse(row.coverages ?? '[]'),
+    photos: JSON.parse(row.photos ?? '[]'),
+    events,
+    messages,
   });
 });
 
