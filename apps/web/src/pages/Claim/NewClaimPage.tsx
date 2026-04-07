@@ -43,9 +43,10 @@ export function NewClaimPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [voiceText, setVoiceText]     = useState('');   // confirmed final text from voice
-  const [interimText, setInterimText] = useState('');   // live interim (what's being said right now)
-  const [voiceDone, setVoiceDone]     = useState(false); // true after stop → show editable textarea
+  const [voiceText, setVoiceText]     = useState('');
+  const [interimText, setInterimText] = useState('');
+  const [voiceDone, setVoiceDone]     = useState(false);
+  const [voiceError, setVoiceError]   = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -57,6 +58,7 @@ export function NewClaimPage() {
     lang: 'pt-PT',
     onFinalResult: (text) => {
       setInterimText('');
+      setVoiceError('');
       setVoiceText(prev => {
         const next = prev ? prev + ' ' + text : text;
         setDescription(next);
@@ -64,6 +66,10 @@ export function NewClaimPage() {
       });
     },
     onInterimResult: (text) => setInterimText(text),
+    onError: (err) => {
+      setVoiceError(err);
+      setInterimText('');
+    },
   });
 
   const handleStopVoice = useCallback(() => {
@@ -430,10 +436,22 @@ export function NewClaimPage() {
                         color: listening ? '#DC2626' : 'var(--cf-text-muted)',
                         fontWeight: listening ? 600 : 400,
                         fontSize: '0.9rem',
-                        marginBottom: (listening || voiceText) ? '1.25rem' : 0,
+                        marginBottom: (listening || voiceText || voiceError) ? '1.25rem' : 0,
                       }}>
                         {listening ? 'A ouvir… pode falar' : 'Toque no microfone e descreva o que aconteceu'}
                       </p>
+
+                      {/* Voice error */}
+                      {voiceError && !listening && (
+                        <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+                          style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--cf-radius)', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.83rem', color: '#DC2626', lineHeight: 1.5 }}>
+                          ⚠️ {voiceError}
+                          <button onClick={() => { setVoiceError(''); setInputMode('text'); }}
+                            style={{ display: 'block', marginTop: '0.5rem', color: 'var(--cf-accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem', padding: 0 }}>
+                            Mudar para texto →
+                          </button>
+                        </motion.div>
+                      )}
 
                       {/* Live transcript — confirmed + interim */}
                       {(voiceText || interimText) && (
