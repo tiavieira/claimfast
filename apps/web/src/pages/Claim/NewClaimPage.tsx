@@ -54,7 +54,7 @@ export function NewClaimPage() {
   }, []);
 
   /* ── Voice ── */
-  const { listening, supported: voiceSupported, startListening, stopListening } = useVoice({
+  const { listening, requesting, supported: voiceSupported, startListening, stopListening } = useVoice({
     lang: 'pt-PT',
     onFinalResult: (text) => {
       setInterimText('');
@@ -397,13 +397,16 @@ export function NewClaimPage() {
                           </>
                         )}
                         <motion.button
-                          whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.93 }}
-                          onClick={() => listening ? handleStopVoice() : startListening()}
+                          whileHover={{ scale: requesting ? 1 : 1.06 }} whileTap={{ scale: requesting ? 1 : 0.93 }}
+                          onClick={() => requesting ? undefined : listening ? handleStopVoice() : startListening()}
+                          disabled={requesting}
                           style={{
-                            width: 88, height: 88, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                            width: 88, height: 88, borderRadius: '50%', border: 'none', cursor: requesting ? 'default' : 'pointer',
                             background: listening
                               ? 'linear-gradient(135deg, #EF4444, #DC2626)'
-                              : 'linear-gradient(135deg, #FF5630, #FF7A54)',
+                              : requesting
+                                ? 'linear-gradient(135deg, #9CA3AF, #6B7280)'
+                                : 'linear-gradient(135deg, #FF5630, #FF7A54)',
                             color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
                             boxShadow: listening
                               ? '0 0 0 5px rgba(239,68,68,0.22), 0 6px 28px rgba(239,68,68,0.45)'
@@ -411,7 +414,7 @@ export function NewClaimPage() {
                             transition: 'all 0.22s cubic-bezier(0.4,0,0.2,1)',
                           }}
                         >
-                          {listening ? <MicOff size={34} /> : <Mic size={34} />}
+                          {requesting ? <Loader2 size={34} style={{ animation: 'spin 1s linear infinite' }} /> : listening ? <MicOff size={34} /> : <Mic size={34} />}
                         </motion.button>
                       </div>
 
@@ -433,12 +436,12 @@ export function NewClaimPage() {
                       )}
 
                       <p style={{
-                        color: listening ? '#DC2626' : 'var(--cf-text-muted)',
+                        color: listening ? '#DC2626' : requesting ? '#6B7280' : 'var(--cf-text-muted)',
                         fontWeight: listening ? 600 : 400,
                         fontSize: '0.9rem',
                         marginBottom: (listening || voiceText || voiceError) ? '1.25rem' : 0,
                       }}>
-                        {listening ? 'A ouvir… pode falar' : 'Toque no microfone e descreva o que aconteceu'}
+                        {listening ? 'A ouvir… pode falar' : requesting ? 'A pedir permissão ao microfone…' : 'Toque no microfone e descreva o que aconteceu'}
                       </p>
 
                       {/* Voice error */}
