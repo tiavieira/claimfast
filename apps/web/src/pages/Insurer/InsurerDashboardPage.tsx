@@ -232,7 +232,7 @@ export function InsurerDashboardPage() {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
                 <Shield size={20} color="#FF6B35" />
-                <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>Portal Seguradora · Fidelidade S.A.</span>
+                <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>Portal Seguradora · {stats?.insurer ?? 'Fidelidade'} S.A.</span>
               </div>
               <h1 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.5px' }}>Dashboard Operacional</h1>
             </div>
