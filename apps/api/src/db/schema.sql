@@ -72,3 +72,14 @@ CREATE TABLE IF NOT EXISTS claim_messages (
   text TEXT NOT NULL,
   created_at TEXT DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'info',
+  read INTEGER DEFAULT 0,
+  claim_id TEXT REFERENCES claims(id),
+  created_at TEXT DEFAULT (datetime('now'))
+);

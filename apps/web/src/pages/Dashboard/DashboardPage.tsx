@@ -203,6 +203,7 @@ function Section({ title, count, children, isMobile, action }: {
 }
 
 function PolicyCard({ policy: p, index }: { policy: any; index: number }) {
+  const navigate = useNavigate();
   const color = POLICY_COLORS[p.type] ?? '#64748B';
   const typeLabels: Record<string, string> = { auto: 'Automóvel', home: 'Habitação', health: 'Saúde', life: 'Vida' };
   return (
@@ -210,6 +211,7 @@ function PolicyCard({ policy: p, index }: { policy: any; index: number }) {
       initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -3 }}
       transition={{ delay: index * 0.06, type: 'spring', stiffness: 400, damping: 28 }}
+      onClick={() => navigate(`/policy/${p.id}`)}
       style={{
         background: 'var(--cf-surface)',
         borderRadius: 'var(--cf-radius)',
@@ -217,7 +219,7 @@ function PolicyCard({ policy: p, index }: { policy: any; index: number }) {
         border: '1.5px solid var(--cf-border)',
         borderTop: `3px solid ${color}`,
         boxShadow: '0 1px 3px rgba(12,25,41,0.05), 0 4px 16px rgba(12,25,41,0.04)',
-        cursor: 'default',
+        cursor: 'pointer',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '0.875rem' }}>

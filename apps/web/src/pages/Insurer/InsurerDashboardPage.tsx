@@ -135,6 +135,10 @@ export function InsurerDashboardPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [validating, setValidating] = useState<string | null>(null);
+  const [actionForm, setActionForm] = useState<{ claimId: string; action: string; value: string; value2: string } | null>(null);
+  const [submittingAction, setSubmittingAction] = useState(false);
+  const [notesForm, setNotesForm] = useState<{ claimId: string; text: string } | null>(null);
+  const [submittingNote, setSubmittingNote] = useState(false);
 
   const headers = { Authorization: `Bearer ${INSURER_TOKEN}` };
 
@@ -157,6 +161,43 @@ export function InsurerDashboardPage() {
     await api.put(`/insurer/policies/${id}/validate`, { action }, { headers });
     await loadPending();
     setValidating(null);
+  };
+
+  const handleClaimAction = async () => {
+    if (!actionForm) return;
+    setSubmittingAction(true);
+    try {
+      const body: any = { action: actionForm.action };
+      if (actionForm.action === 'approve') body.amount = parseFloat(actionForm.value) || undefined;
+      if (actionForm.action === 'reject') body.reason = actionForm.value;
+      if (actionForm.action === 'request_docs') body.message = actionForm.value;
+      if (actionForm.action === 'assign_expert') { body.expertName = actionForm.value; body.expertPhone = actionForm.value2; }
+      await api.put(`/insurer/claims/${actionForm.claimId}/action`, body, { headers });
+      setActionForm(null);
+      setExpandedId(null);
+      reload();
+    } finally { setSubmittingAction(false); }
+  };
+
+  const handleAddNote = async () => {
+    if (!notesForm?.text.trim()) return;
+    setSubmittingNote(true);
+    try {
+      const r = await api.post(`/insurer/claims/${notesForm.claimId}/notes`, { text: notesForm.text }, { headers });
+      setClaims(prev => prev.map(c => c.id === notesForm!.claimId ? { ...c, internal_notes: r.data.notes } : c));
+      setNotesForm({ claimId: notesForm.claimId, text: '' });
+    } finally { setSubmittingNote(false); }
+  };
+
+  const handleExport = async () => {
+    try {
+      const response = await fetch(`${(api.defaults as any).baseURL}/insurer/claims/export`, { headers: { Authorization: `Bearer ${INSURER_TOKEN}` } });
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `sinistros-${new Date().toISOString().slice(0,10)}.csv`; a.click();
+      URL.revokeObjectURL(url);
+    } catch {}
   };
 
   const reload = () => {
@@ -465,6 +506,21 @@ export function InsurerDashboardPage() {
           </motion.div>
         )}
 
+        {/* SLA alerts */}
+        {(() => {
+          const stale = claims.filter(c => !['paid','rejected'].includes(c.status) && (c.days_pending ?? 0) > 7);
+          return stale.length > 0 ? (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              style={{ background: '#FFF7ED', border: '1.5px solid #FED7AA', borderRadius: '1rem', padding: '0.875rem 1.25rem', marginTop: '1rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+              <Clock size={18} color="#D97706" style={{ flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, color: '#92400E', fontSize: '0.875rem' }}>{stale.length} sinistro{stale.length > 1 ? 's' : ''} sem resposta há mais de 7 dias</div>
+                <div style={{ fontSize: '0.75rem', color: '#B45309', marginTop: '0.1rem' }}>{stale.slice(0,3).map((c: any) => c.user_name).join(', ')}{stale.length > 3 ? ` +${stale.length - 3}` : ''}</div>
+              </div>
+            </motion.div>
+          ) : null;
+        })()}
+
         {/* Claims table */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
           style={{ background: 'white', borderRadius: '1rem', border: '1.5px solid #E2E8F0', overflow: 'hidden', marginTop: fraudAlertClaims.length === 0 ? '1rem' : 0 }}>
@@ -482,6 +538,10 @@ export function InsurerDashboardPage() {
               onClick={() => setFilter(f => f ? '' : 'fraud')}
               style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.5rem 0.875rem', border: `1.5px solid ${filter ? '#EF4444' : '#E2E8F0'}`, borderRadius: '0.625rem', background: filter ? '#FEF2F2' : 'transparent', color: filter ? '#DC2626' : '#64748B', fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer' }}>
               <Filter size={13} /> {filter ? 'Score alto' : 'Filtrar'}
+            </button>
+            <button onClick={handleExport}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.5rem 0.875rem', border: '1.5px solid #E2E8F0', borderRadius: '0.625rem', background: 'transparent', color: '#64748B', fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer' }}>
+              ↓ CSV
             </button>
           </div>
 
@@ -592,6 +652,108 @@ export function InsurerDashboardPage() {
                               ))}
                               <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: '#F8FAFC', borderRadius: '0.625rem', fontSize: '0.78rem', color: '#475569', lineHeight: 1.5 }}>
                                 "{c.description}"
+                              </div>
+                            </div>
+
+                            {/* Actions + Notes row */}
+                            <div style={{ gridColumn: '1 / -1', borderTop: '1px solid #E2E8F0', paddingTop: '1rem', display: 'grid', gridTemplateColumns: bp.isMobile ? '1fr' : '1fr 1fr', gap: '1.25rem' }}>
+                              {/* Actions */}
+                              <div>
+                                <div style={{ fontWeight: 700, fontSize: '0.78rem', color: '#475569', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ações</div>
+                                {actionForm?.claimId === c.id ? (() => { const af = actionForm!; return (
+                                  <div style={{ background: '#F8FAFC', borderRadius: '0.75rem', padding: '1rem', border: '1.5px solid #E2E8F0' }}>
+                                    <div style={{ fontWeight: 600, fontSize: '0.82rem', marginBottom: '0.75rem', color: '#0F172A' }}>
+                                      {af.action === 'approve' && '✅ Aprovar sinistro'}
+                                      {af.action === 'reject' && '❌ Rejeitar sinistro'}
+                                      {af.action === 'request_docs' && '📄 Solicitar documentação'}
+                                      {af.action === 'assign_expert' && '👷 Atribuir perito'}
+                                      {af.action === 'mark_paid' && '💰 Marcar como pago'}
+                                    </div>
+                                    {af.action === 'approve' && (
+                                      <input type="number" value={af.value} onChange={e => setActionForm(f => f ? { ...f, value: e.target.value } : f)}
+                                        placeholder="Valor a aprovar (€)" style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1.5px solid #E2E8F0', borderRadius: '0.5rem', fontSize: '0.82rem', marginBottom: '0.625rem', boxSizing: 'border-box' as any }} />
+                                    )}
+                                    {(af.action === 'reject' || af.action === 'request_docs') && (
+                                      <textarea value={af.value} onChange={e => setActionForm(f => f ? { ...f, value: e.target.value } : f)}
+                                        placeholder={af.action === 'reject' ? 'Motivo de rejeição…' : 'Mensagem para o cliente…'}
+                                        rows={3} style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1.5px solid #E2E8F0', borderRadius: '0.5rem', fontSize: '0.82rem', marginBottom: '0.625rem', resize: 'vertical', boxSizing: 'border-box' as any }} />
+                                    )}
+                                    {af.action === 'assign_expert' && (
+                                      <>
+                                        <input value={af.value} onChange={e => setActionForm(f => f ? { ...f, value: e.target.value } : f)}
+                                          placeholder="Nome do perito" style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1.5px solid #E2E8F0', borderRadius: '0.5rem', fontSize: '0.82rem', marginBottom: '0.5rem', boxSizing: 'border-box' as any }} />
+                                        <input value={af.value2} onChange={e => setActionForm(f => f ? { ...f, value2: e.target.value } : f)}
+                                          placeholder="Telefone (opcional)" style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1.5px solid #E2E8F0', borderRadius: '0.5rem', fontSize: '0.82rem', marginBottom: '0.625rem', boxSizing: 'border-box' as any }} />
+                                      </>
+                                    )}
+                                    {af.action === 'mark_paid' && (
+                                      <div style={{ fontSize: '0.82rem', color: '#64748B', marginBottom: '0.625rem' }}>
+                                        Confirmar pagamento de {formatCurrency(c.approved_amount ?? c.estimated_amount)} ao cliente?
+                                      </div>
+                                    )}
+                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                      <button onClick={handleClaimAction} disabled={submittingAction}
+                                        style={{ flex: 1, padding: '0.5rem', background: '#0F172A', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}>
+                                        {submittingAction ? 'A submeter…' : 'Confirmar'}
+                                      </button>
+                                      <button onClick={() => setActionForm(null)}
+                                        style={{ padding: '0.5rem 0.875rem', background: 'white', border: '1.5px solid #E2E8F0', borderRadius: '0.5rem', fontWeight: 500, fontSize: '0.8rem', cursor: 'pointer', color: '#64748B' }}>
+                                        Cancelar
+                                      </button>
+                                    </div>
+                                  </div>
+                                ); })() : (
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+                                    {!['approved','paid','rejected'].includes(c.status) && (
+                                      <button onClick={() => setActionForm({ claimId: c.id, action: 'approve', value: String(c.estimated_amount ?? ''), value2: '' })}
+                                        style={{ padding: '0.375rem 0.75rem', border: '1.5px solid #A7F3D0', borderRadius: '0.5rem', background: '#ECFDF5', color: '#059669', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}>✅ Aprovar</button>
+                                    )}
+                                    {!['rejected','paid'].includes(c.status) && (
+                                      <button onClick={() => setActionForm({ claimId: c.id, action: 'reject', value: '', value2: '' })}
+                                        style={{ padding: '0.375rem 0.75rem', border: '1.5px solid #FECACA', borderRadius: '0.5rem', background: '#FEF2F2', color: '#DC2626', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}>❌ Rejeitar</button>
+                                    )}
+                                    {!['paid','rejected'].includes(c.status) && (
+                                      <button onClick={() => setActionForm({ claimId: c.id, action: 'request_docs', value: '', value2: '' })}
+                                        style={{ padding: '0.375rem 0.75rem', border: '1.5px solid #BFDBFE', borderRadius: '0.5rem', background: '#EFF6FF', color: '#2563EB', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}>📄 Pedir docs</button>
+                                    )}
+                                    {!['expert_assigned','approved','paid','rejected'].includes(c.status) && (
+                                      <button onClick={() => setActionForm({ claimId: c.id, action: 'assign_expert', value: '', value2: '' })}
+                                        style={{ padding: '0.375rem 0.75rem', border: '1.5px solid #DDD6FE', borderRadius: '0.5rem', background: '#F5F3FF', color: '#7C3AED', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}>👷 Perito</button>
+                                    )}
+                                    {c.status === 'approved' && (
+                                      <button onClick={() => setActionForm({ claimId: c.id, action: 'mark_paid', value: '', value2: '' })}
+                                        style={{ padding: '0.375rem 0.75rem', border: '1.5px solid #A7F3D0', borderRadius: '0.5rem', background: '#ECFDF5', color: '#059669', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}>💰 Marcar pago</button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Internal notes */}
+                              <div>
+                                <div style={{ fontWeight: 700, fontSize: '0.78rem', color: '#475569', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Notas internas</div>
+                                {(c.internal_notes ?? []).length > 0 && (
+                                  <div style={{ marginBottom: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: 140, overflowY: 'auto' }}>
+                                    {(c.internal_notes ?? []).map((n: any, i: number) => (
+                                      <div key={i} style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '0.5rem', padding: '0.5rem 0.75rem', fontSize: '0.78rem' }}>
+                                        <div style={{ color: '#78350F' }}>{n.text}</div>
+                                        <div style={{ color: '#B45309', fontSize: '0.68rem', marginTop: '0.2rem' }}>{new Date(n.created_at).toLocaleString('pt-PT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                  <input
+                                    value={notesForm?.claimId === c.id ? notesForm!.text : ''}
+                                    onFocus={() => setNotesForm(f => f?.claimId === c.id ? f : { claimId: c.id, text: '' })}
+                                    onChange={e => setNotesForm(f => f ? { ...f, text: e.target.value } : { claimId: c.id, text: e.target.value })}
+                                    placeholder="Adicionar nota interna…"
+                                    style={{ flex: 1, padding: '0.5rem 0.75rem', border: '1.5px solid #E2E8F0', borderRadius: '0.5rem', fontSize: '0.78rem', outline: 'none' }}
+                                  />
+                                  <button onClick={handleAddNote} disabled={submittingNote || !notesForm?.text.trim()}
+                                    style={{ padding: '0.5rem 0.875rem', background: '#1B3A6B', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer', opacity: !notesForm?.text.trim() ? 0.5 : 1 }}>
+                                    {submittingNote ? '…' : 'Guardar'}
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           </motion.div>

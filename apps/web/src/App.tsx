@@ -8,6 +8,8 @@ import { NewClaimPage } from './pages/Claim/NewClaimPage';
 import { ClaimDetailPage } from './pages/Claim/ClaimDetailPage';
 import { InsurerDashboardPage } from './pages/Insurer/InsurerDashboardPage';
 import { NewPolicyPage } from './pages/Policy/NewPolicyPage';
+import { PolicyDetailPage } from './pages/Policy/PolicyDetailPage';
+import { ProfilePage } from './pages/Profile/ProfilePage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -26,6 +28,8 @@ export default function App() {
         <Route path="claim/new" element={<NewClaimPage />} />
         <Route path="claim/:id" element={<ClaimDetailPage />} />
         <Route path="policy/new" element={<NewPolicyPage />} />
+        <Route path="policy/:id" element={<PolicyDetailPage />} />
+        <Route path="profile" element={<ProfilePage />} />
       </Route>
       <Route path="/insurer" element={<InsurerDashboardPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />

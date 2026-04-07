@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, CheckCircle, Clock, Search, Shield, Banknote, AlertCircle, Send, Loader2, MessageCircle, Wrench, Star, MapPin, Phone, Navigation } from 'lucide-react';
+import { ChevronLeft, CheckCircle, Clock, Search, Shield, Banknote, AlertCircle, Send, Loader2, MessageCircle, Wrench, Star, MapPin, Phone, Navigation, Upload } from 'lucide-react';
 import { api } from '../../config/api';
 import { formatCurrency, formatDateTime, formatDate } from '../../utils/format';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
@@ -19,6 +19,29 @@ const STATUS_COLORS: Record<string, string> = {
   approved: '#059669', rejected: '#DC2626', paid: '#059669',
 };
 
+function resizeImageForClaim(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = e => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        let { width, height } = img;
+        const maxPx = 1200;
+        if (width > height && width > maxPx) { height = Math.round(height * maxPx / width); width = maxPx; }
+        else if (height > maxPx) { width = Math.round(width * maxPx / height); height = maxPx; }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.78));
+      };
+      img.src = e.target!.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export function ClaimDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -35,6 +58,8 @@ export function ClaimDetailPage() {
   const [authorizing, setAuthorizing] = useState<string | null>(null);
   const [authorized, setAuthorized] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const load = () => api.get(`/claims/${id}`).then(r => {
     setClaim(r.data);
@@ -47,6 +72,23 @@ export function ClaimDetailPage() {
 
   useEffect(() => { load(); }, [id]);
   useEffect(() => { if (activeTab === 'chat') messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [claim?.messages, activeTab]);
+
+  const handleAddPhotos = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setPhotoUploading(true);
+    try {
+      const resized: string[] = [];
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith('image/')) continue;
+        resized.push(await resizeImageForClaim(file));
+      }
+      await api.post(`/claims/${id}/photos`, { photos: resized });
+      load();
+    } finally {
+      setPhotoUploading(false);
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  };
 
   const sendMessage = async () => {
     if (!message.trim() || sending) return;
@@ -157,6 +199,18 @@ export function ClaimDetailPage() {
             );
           })}
         </div>
+
+        {claim.expert_name && (
+          <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--cf-border)', display: 'flex', alignItems: 'center', gap: '0.625rem', fontSize: '0.82rem' }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#7C3AED18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Shield size={13} color="#7C3AED" />
+            </div>
+            <div>
+              <div style={{ fontWeight: 600, color: 'var(--cf-text)' }}>Perito: {claim.expert_name}</div>
+              {claim.expert_phone && <div style={{ color: 'var(--cf-text-muted)', fontSize: '0.75rem' }}>{claim.expert_phone}</div>}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Expert */}
@@ -200,6 +254,20 @@ export function ClaimDetailPage() {
               {claim.coverage_reason}
             </div>
           )}
+          {(claim.status === 'approved' || claim.status === 'paid') && claim.approved_amount && (
+            <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--cf-border)' }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--cf-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.625rem' }}>Resumo financeiro</div>
+              {[
+                { label: 'Estimativa IA', value: formatCurrency(claim.estimated_amount), muted: true },
+                { label: 'Valor aprovado', value: formatCurrency(claim.approved_amount), highlight: true },
+              ].map(row => (
+                <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.375rem 0', fontSize: '0.82rem' }}>
+                  <span style={{ color: 'var(--cf-text-muted)' }}>{row.label}</span>
+                  <span style={{ fontWeight: row.highlight ? 700 : 400, color: row.highlight ? 'var(--cf-success)' : 'var(--cf-text-muted)' }}>{row.value}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -227,20 +295,30 @@ export function ClaimDetailPage() {
         {activeTab === 'timeline' && (
           <motion.div key="timeline" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             {/* Photos */}
-            {claim.photos?.filter((p: string) => p.startsWith('data:')).length > 0 && (
-              <div style={{ background: 'var(--cf-surface)', border: '1.5px solid var(--cf-border)', borderRadius: 'var(--cf-radius)', padding: '1rem 1.25rem', marginBottom: '1rem' }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--cf-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.75rem' }}>
-                  Evidências ({claim.photos.filter((p: string) => p.startsWith('data:')).length})
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem' }}>
-                  {claim.photos.filter((p: string) => p.startsWith('data:')).map((src: string, i: number) => (
-                    <a key={i} href={src} target="_blank" rel="noopener noreferrer" style={{ display: 'block', aspectRatio: '1', borderRadius: 6, overflow: 'hidden', border: '1px solid var(--cf-border)' }}>
-                      <img src={src} alt={`Evidência ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                    </a>
-                  ))}
-                </div>
+            <div style={{ background: 'var(--cf-surface)', border: '1.5px solid var(--cf-border)', borderRadius: 'var(--cf-radius)', padding: '1rem 1.25rem', marginBottom: '1rem' }}>
+              {claim.photos?.filter((p: string) => p.startsWith('data:')).length > 0 && (
+                <>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--cf-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.75rem' }}>
+                    Evidências ({claim.photos.filter((p: string) => p.startsWith('data:')).length})
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem' }}>
+                    {claim.photos.filter((p: string) => p.startsWith('data:')).map((src: string, i: number) => (
+                      <a key={i} href={src} target="_blank" rel="noopener noreferrer" style={{ display: 'block', aspectRatio: '1', borderRadius: 6, overflow: 'hidden', border: '1px solid var(--cf-border)' }}>
+                        <img src={src} alt={`Evidência ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      </a>
+                    ))}
+                  </div>
+                </>
+              )}
+              {/* Add photos button */}
+              <div style={{ marginTop: claim.photos?.filter((p: string) => p.startsWith('data:')).length > 0 ? '0.875rem' : 0, paddingTop: claim.photos?.filter((p: string) => p.startsWith('data:')).length > 0 ? '0.875rem' : 0, borderTop: claim.photos?.filter((p: string) => p.startsWith('data:')).length > 0 ? '1px solid var(--cf-border)' : 'none' }}>
+                <input ref={photoInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => handleAddPhotos(e.target.files)} />
+                <button onClick={() => photoInputRef.current?.click()} disabled={photoUploading}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.875rem', border: '1.5px solid var(--cf-border)', borderRadius: 'var(--cf-radius-sm)', background: 'var(--cf-surface2)', cursor: photoUploading ? 'not-allowed' : 'pointer', fontSize: '0.8rem', fontWeight: 600, color: 'var(--cf-text-sec)' }}>
+                  {photoUploading ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> A enviar…</> : <><Upload size={14} /> Adicionar fotos</>}
+                </button>
               </div>
-            )}
+            </div>
             {(claim.events ?? []).map((ev: any, i: number) => (
               <motion.div key={ev.id}
                 initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}

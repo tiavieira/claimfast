@@ -230,3 +230,16 @@ claimRouter.post('/:id/messages', (req: AuthRequest, res) => {
 
   res.status(201).json({ id: msgId, claim_id: req.params.id, role: 'customer', text, created_at: now });
 });
+
+/* ── Add photos post-submission ── */
+claimRouter.post('/:id/photos', (req: AuthRequest, res) => {
+  const { photos } = req.body;
+  if (!Array.isArray(photos) || photos.length === 0) return res.status(400).json({ error: 'Fotos obrigatórias' });
+  const db = getDb();
+  const claim = db.prepare('SELECT id,photos FROM claims WHERE id=? AND user_id=?').get(req.params.id, req.userId) as any;
+  if (!claim) return res.status(404).json({ error: 'Sinistro não encontrado' });
+  const existing: string[] = JSON.parse(claim.photos ?? '[]');
+  const updated = [...existing, ...photos].slice(0, 20);
+  db.prepare('UPDATE claims SET photos=?, updated_at=? WHERE id=?').run(JSON.stringify(updated), new Date().toISOString(), req.params.id);
+  res.json({ photos: updated });
+});
