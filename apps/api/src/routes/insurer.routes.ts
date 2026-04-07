@@ -41,8 +41,10 @@ insurerRouter.get('/stats', (req, res) => {
 
   const resolutionRows = db.prepare(`
     SELECT c.created_at, e.created_at as resolved_at
-    ${base} AND c.status IN ('approved','paid')
+    FROM claims c
+    JOIN policies p ON c.policy_id = p.id
     JOIN claim_events e ON e.claim_id = c.id AND e.status IN ('approved','paid')
+    WHERE p.insurer = ? AND c.status IN ('approved','paid')
   `).all(insurer) as any[];
 
   let avgResolutionDays = 0;
