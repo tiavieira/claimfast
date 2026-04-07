@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS policies (
   vehicle_year INTEGER,
   address TEXT,
   coverages TEXT DEFAULT '[]',
+  source TEXT DEFAULT 'imported',
+  validation_status TEXT DEFAULT 'validated',
   created_at TEXT DEFAULT (datetime('now'))
 );
 

@@ -143,6 +143,38 @@ insurerRouter.get('/charts', (req, res) => {
   });
 });
 
+/* ── Pending manual policies ── */
+insurerRouter.get('/policies/pending', (req, res) => {
+  if (!checkToken(req, res)) return;
+  const db = getDb();
+  const rows = db.prepare(`
+    SELECT p.*, u.name as user_name, u.email as user_email, u.phone as user_phone
+    FROM policies p
+    JOIN users u ON p.user_id = u.id
+    WHERE p.source = 'manual' AND p.validation_status = 'pending'
+    ORDER BY p.created_at DESC
+  `).all() as any[];
+  res.json(rows.map(p => ({ ...p, coverages: JSON.parse(p.coverages ?? '[]') })));
+});
+
+insurerRouter.put('/policies/:id/validate', (req, res) => {
+  if (!checkToken(req, res)) return;
+  const db = getDb();
+  const { action } = req.body; // 'approve' | 'reject'
+  if (!['approve', 'reject'].includes(action)) {
+    return res.status(400).json({ error: 'Ação inválida' });
+  }
+  const policy = db.prepare('SELECT * FROM policies WHERE id = ?').get(req.params.id) as any;
+  if (!policy) return res.status(404).json({ error: 'Apólice não encontrada' });
+
+  if (action === 'approve') {
+    db.prepare("UPDATE policies SET validation_status = 'validated' WHERE id = ?").run(req.params.id);
+  } else {
+    db.prepare("UPDATE policies SET validation_status = 'rejected', status = 'cancelled' WHERE id = ?").run(req.params.id);
+  }
+  res.json({ ok: true });
+});
+
 /* ── Repair shop network ── */
 insurerRouter.get('/repair-shops', (req, res) => {
   res.json(REPAIR_SHOPS);

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, Car, Home, Heart, Shield, ChevronRight, Clock, CheckCircle, AlertCircle, Banknote, Search } from 'lucide-react';
+import { Plus, Car, Home, Heart, Shield, ChevronRight, Clock, CheckCircle, AlertCircle, Banknote, Search, FilePlus } from 'lucide-react';
 import { api } from '../../config/api';
 import { useAuthStore } from '../../store/auth.store';
 import { formatCurrency, formatDate } from '../../utils/format';
@@ -146,7 +146,12 @@ export function DashboardPage() {
       )}
 
       {/* Policies */}
-      <Section title="As minhas apólices" count={policies.length} isMobile={isMobile}>
+      <Section
+        title="As minhas apólices"
+        count={policies.length}
+        isMobile={isMobile}
+        action={{ label: isMobile ? undefined : 'Adicionar', icon: <FilePlus size={14} />, onClick: () => navigate('/policy/new') }}
+      >
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? '240px' : '280px'}, 1fr))`, gap: '0.875rem' }}>
           {policies.map((p, i) => (
             <PolicyCard key={p.id} policy={p} index={i} />
@@ -166,31 +171,31 @@ export function DashboardPage() {
   );
 }
 
-function Section({ title, count, children, isMobile }: { title: string; count: number; children: React.ReactNode; isMobile: boolean }) {
+function Section({ title, count, children, isMobile, action }: {
+  title: string; count: number; children: React.ReactNode; isMobile: boolean;
+  action?: { label?: string; icon: React.ReactNode; onClick: () => void };
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
       style={{ marginBottom: '2.25rem' }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.5rem' : '0.625rem', marginBottom: isMobile ? '0.75rem' : '1rem' }}>
-        <div style={{
-          width: 6,
-          height: 6,
-          borderRadius: '50%',
-          background: 'var(--cf-accent)',
-          flexShrink: 0,
-        }} />
+        <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--cf-accent)', flexShrink: 0 }} />
         <h2 style={{ fontSize: '1rem', fontWeight: 700 }}>{title}</h2>
-        <span style={{
-          fontSize: '0.72rem',
-          background: 'rgba(255,86,48,0.10)',
-          color: 'var(--cf-accent)',
-          padding: '0.1rem 0.5rem',
-          borderRadius: '999px',
-          fontWeight: 600,
-        }}>
+        <span style={{ fontSize: '0.72rem', background: 'rgba(255,86,48,0.10)', color: 'var(--cf-accent)', padding: '0.1rem 0.5rem', borderRadius: '999px', fontWeight: 600 }}>
           {count}
         </span>
+        {action && (
+          <button onClick={action.onClick} style={{
+            marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.3rem',
+            background: 'rgba(255,86,48,0.08)', color: 'var(--cf-accent)',
+            border: '1px solid rgba(255,86,48,0.2)', borderRadius: '999px',
+            padding: '0.25rem 0.7rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
+          }}>
+            {action.icon}{action.label}
+          </button>
+        )}
       </div>
       {children}
     </motion.div>
@@ -234,7 +239,10 @@ function PolicyCard({ policy: p, index }: { policy: any; index: number }) {
           <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{typeLabels[p.type] ?? p.type}</div>
           <div style={{ fontSize: '0.72rem', color: 'var(--cf-text-muted)', marginTop: '0.1rem' }}>{p.insurer}</div>
         </div>
-        <div style={{ fontSize: '0.68rem', background: '#ECFDF5', color: '#059669', padding: '0.2rem 0.55rem', borderRadius: '999px', fontWeight: 600, flexShrink: 0 }}>Ativa</div>
+        {p.validation_status === 'pending'
+          ? <div style={{ fontSize: '0.68rem', background: '#FFFBEB', color: '#D97706', padding: '0.2rem 0.55rem', borderRadius: '999px', fontWeight: 600, flexShrink: 0 }}>⏳ Pendente</div>
+          : <div style={{ fontSize: '0.68rem', background: '#ECFDF5', color: '#059669', padding: '0.2rem 0.55rem', borderRadius: '999px', fontWeight: 600, flexShrink: 0 }}>Ativa</div>
+        }
       </div>
       <div style={{ fontSize: '0.75rem', color: 'var(--cf-text-muted)', fontFamily: 'monospace', marginBottom: '0.625rem' }}>{p.policy_number}</div>
       {p.plate && <div style={{ fontSize: '0.78rem', color: 'var(--cf-text-sec)' }}>{p.vehicle_make} {p.vehicle_model} · <strong>{p.plate}</strong></div>}

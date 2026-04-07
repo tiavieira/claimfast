@@ -129,22 +129,35 @@ export function InsurerDashboardPage() {
   const [stats, setStats]   = useState<any>(null);
   const [charts, setCharts] = useState<any>(null);
   const [claims, setClaims] = useState<any[]>([]);
+  const [pendingPolicies, setPendingPolicies] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [validating, setValidating] = useState<string | null>(null);
 
   const headers = { Authorization: `Bearer ${INSURER_TOKEN}` };
+
+  const loadPending = () =>
+    api.get('/insurer/policies/pending', { headers }).then(r => setPendingPolicies(r.data));
 
   useEffect(() => {
     Promise.all([
       api.get('/insurer/stats',  { headers }),
       api.get('/insurer/charts', { headers }),
       api.get('/insurer/claims', { headers }),
-    ]).then(([s, c, cl]) => {
-      setStats(s.data); setCharts(c.data); setClaims(cl.data);
+      api.get('/insurer/policies/pending', { headers }),
+    ]).then(([s, c, cl, pp]) => {
+      setStats(s.data); setCharts(c.data); setClaims(cl.data); setPendingPolicies(pp.data);
     }).finally(() => setLoading(false));
   }, []);
+
+  const handleValidate = async (id: string, action: 'approve' | 'reject') => {
+    setValidating(id);
+    await api.put(`/insurer/policies/${id}/validate`, { action }, { headers });
+    await loadPending();
+    setValidating(null);
+  };
 
   const reload = () => {
     const params: any = {};
@@ -372,6 +385,55 @@ export function InsurerDashboardPage() {
             </ComposedChart>
           </ResponsiveContainer>
         </ChartCard>
+
+        {/* Pending policies */}
+        {pendingPolicies.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+            style={{ background: 'white', borderRadius: '1rem', border: '1.5px solid #FDE68A', marginBottom: '1rem', overflow: 'hidden' }}>
+            <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #FEF3C7', display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+              <div style={{ width: 32, height: 32, borderRadius: '0.625rem', background: '#FFFBEB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Clock size={16} color="#D97706" />
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#92400E' }}>
+                  {pendingPolicies.length} apólice{pendingPolicies.length > 1 ? 's' : ''} aguarda{pendingPolicies.length === 1 ? '' : 'm'} validação
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#B45309' }}>Registadas manualmente pelo cliente</div>
+              </div>
+            </div>
+            {pendingPolicies.map((p: any) => {
+              const typeLabels: Record<string, string> = { auto: 'Automóvel', home: 'Habitação', health: 'Saúde', life: 'Vida' };
+              return (
+                <div key={p.id} style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #FEF9E7', display: 'flex', alignItems: bp.isMobile ? 'flex-start' : 'center', flexDirection: bp.isMobile ? 'column' : 'row', gap: '0.875rem' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{p.user_name} <span style={{ color: '#94A3B8', fontWeight: 400 }}>· {p.user_email}</span></div>
+                    <div style={{ fontSize: '0.78rem', color: '#64748B', marginTop: '0.2rem' }}>
+                      {typeLabels[p.type] ?? p.type} · {p.insurer} · <span style={{ fontFamily: 'monospace' }}>{p.policy_number}</span>
+                    </div>
+                    {p.plate && <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '0.15rem' }}>{p.vehicle_make} {p.vehicle_model} · {p.plate}</div>}
+                    {p.address && <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '0.15rem' }}>{p.address}</div>}
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                    <button
+                      disabled={validating === p.id}
+                      onClick={() => handleValidate(p.id, 'reject')}
+                      style={{ padding: '0.45rem 0.875rem', border: '1.5px solid #FECACA', borderRadius: '0.5rem', background: 'white', color: '#DC2626', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer' }}
+                    >
+                      Rejeitar
+                    </button>
+                    <button
+                      disabled={validating === p.id}
+                      onClick={() => handleValidate(p.id, 'approve')}
+                      style={{ padding: '0.45rem 0.875rem', border: 'none', borderRadius: '0.5rem', background: '#059669', color: 'white', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer' }}
+                    >
+                      {validating === p.id ? '…' : 'Validar'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </motion.div>
+        )}
 
         {/* Fraud alerts banner */}
         {fraudAlertClaims.length > 0 && (
