@@ -1,0 +1,100 @@
+:root {
+  /* ── Core palette ── */
+  --cf-primary:        #1A2E52;
+  --cf-primary-light:  #2E508C;
+  --cf-accent:         #FF5630;
+  --cf-accent-soft:    #FFF0EB;
+  --cf-bg:             #EEF2FA;
+  --cf-surface:        #FFFFFF;
+  --cf-surface2:       #F4F7FC;
+  --cf-text:           #0D1E3A;
+  --cf-text-sec:       #3D5170;
+  --cf-text-muted:     #8A9BBF;
+  --cf-border:         #DDE6F0;
+  --cf-border-strong:  #BCC9DC;
+
+  /* ── Status colors ── */
+  --cf-success:        #059669;
+  --cf-success-bg:     #ECFDF5;
+  --cf-warning:        #D97706;
+  --cf-warning-bg:     #FFFBEB;
+  --cf-error:          #DC2626;
+  --cf-error-bg:       #FEF2F2;
+  --cf-info:           #2563EB;
+  --cf-info-bg:        #EFF6FF;
+
+  /* ── Glass morphism ── */
+  --cf-glass:          rgba(255, 255, 255, 0.85);
+  --cf-glass-border:   rgba(255, 255, 255, 0.50);
+
+  /* ── Radius scale ── */
+  --cf-radius-xs:      0.5rem;
+  --cf-radius-sm:      0.75rem;
+  --cf-radius:         1rem;
+  --cf-radius-lg:      1.25rem;
+  --cf-radius-xl:      1.5rem;
+
+  /* ── Layered colored shadows ── */
+  --cf-shadow:         0 1px 3px rgba(12,25,41,0.05), 0 4px 16px rgba(12,25,41,0.04);
+  --cf-shadow-md:      0 2px 8px rgba(12,25,41,0.06), 0 8px 24px rgba(12,25,41,0.05);
+  --cf-shadow-lg:      0 4px 16px rgba(12,25,41,0.08), 0 16px 48px rgba(12,25,41,0.07);
+  --cf-shadow-accent:  0 4px 16px rgba(255,86,48,0.30), 0 2px 6px rgba(255,86,48,0.16);
+  --cf-shadow-primary: 0 4px 20px rgba(26,46,82,0.24), 0 2px 6px rgba(26,46,82,0.12);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  scroll-behavior: smooth;
+}
+
+html, body, #root {
+  height: 100%;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: var(--cf-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--cf-bg);
+  background-image:
+    radial-gradient(ellipse 80% 60% at 90% 5%,  rgba(26,46,82,0.06)  0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 5%  95%,  rgba(255,86,48,0.05) 0%, transparent 55%);
+  background-attachment: fixed;
+}
+
+button { font-family: inherit; }
+input, textarea, select { font-family: inherit; }
+
+::selection {
+  background: rgba(255, 86, 48, 0.18);
+  color: var(--cf-text);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar         { width: 5px; height: 5px; }
+::-webkit-scrollbar-track   { background: transparent; }
+::-webkit-scrollbar-thumb   { background: var(--cf-border-strong); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--cf-text-muted); }
+
+/* ── Keyframes ── */
+@keyframes pulse-ring {
+  0%   { transform: scale(1); opacity: 0.7; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes float-slow {
+  0%,  100% { transform: translate(0, 0)     scale(1); }
+  33%        { transform: translate(24px, -18px) scale(1.06); }
+  66%        { transform: translate(-12px, 12px) scale(0.94); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
